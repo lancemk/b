@@ -1,21 +1,16 @@
-name: Deploy React 19 (pnpm) to GitHub Pages
+name: Deploy React 19 via gh-pages script
 
 on:
   push:
-    branches: ["master"]
+    branches: ['master']
   workflow_dispatch:
 
+# IMPORTANT: We need write access to contents to allow 'gh-pages' to push to the branch
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,37 +19,26 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9 # Matches React 19 ecosystem requirements
+          version: 9
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: '20'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm run build
+      - name: Set Git Identity
+        # The 'gh-pages' script needs a git user to commit the build folder
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fix SPA Routing (404 Hack)
-        # GitHub Pages doesn't support SPA routing natively.
-        # We copy index.html to 404.html so React Router can take over.
-        run: cp dist/index.html dist/404.html
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "./dist"
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Execute Deploy Script
+        # This runs 'pre-deploy' (build) then 'deploy' (gh-pages -d dist)
+        run: pnpm run deploy
+        env:
+          # If your vite.config.ts uses env vars for the base path or API keys
+          VITE_APP_BASE: '/alias/'

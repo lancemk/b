@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   // Set the base path based on the environment
   // Production uses '/b/' as per your server requirement
   const isProduction = mode === "production";
-  const base = isProduction ? "/b/" : "/";
+  const base = isProduction ? "/b" : "/";
 
   return {
     base: base,
