@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "pre-deploy": "pnpm run build",
     "deploy": "gh-pages -d dist",
-    "local:deploy": "gh-pages -d dist --repo https://x-access-token:$GITHUB_TOKEN@github.com/username/repo-name.git",
+    "local:deploy": "gh-pages -d dist --repo https://x-access-token:$GITHUB_TOKEN@github.com/lancemk/b.git",
     "test:watch": "vitest"
   },
   "dependencies": {
