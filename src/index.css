@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 4%;
+    --foreground: 60 9% 92%;
+
+    --card: 220 12% 7%;
+    --card-foreground: 60 9% 92%;
+
+    --popover: 220 12% 7%;
+    --popover-foreground: 60 9% 92%;
+
+    --primary: 174 72% 52%;
+    --primary-foreground: 220 14% 4%;
+
+    --secondary: 220 10% 14%;
+    --secondary-foreground: 60 9% 85%;
+
+    --muted: 220 10% 12%;
+    --muted-foreground: 220 8% 50%;
+
+    --accent: 174 72% 52%;
+    --accent-foreground: 220 14% 4%;
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 60 9% 92%;
+
+    --border: 220 10% 16%;
+    --input: 220 10% 16%;
+    --ring: 174 72% 52%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 220 12% 6%;
+    --sidebar-foreground: 60 9% 85%;
+    --sidebar-primary: 174 72% 52%;
+    --sidebar-primary-foreground: 220 14% 4%;
+    --sidebar-accent: 220 10% 14%;
+    --sidebar-accent-foreground: 60 9% 85%;
+    --sidebar-border: 220 10% 16%;
+    --sidebar-ring: 174 72% 52%;
+
+    /* Custom tokens */
+    --surface: 220 12% 9%;
+    --surface-foreground: 60 9% 85%;
+    --glow: 174 72% 52%;
+    --glow-muted: 174 40% 25%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-mono tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-400;
+  }
+
+  .glow-border {
+    box-shadow: 0 0 20px -5px hsl(var(--glow) / 0.3);
+  }
+
+  .page-container {
+    @apply max-w-5xl mx-auto px-6 py-16 md:py-24;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-mono font-bold mb-4;
+  }
+
+  .section-subtitle {
+    @apply text-muted-foreground text-lg mb-12 max-w-2xl;
+  }
+}
+
+::selection {
+  background: hsl(174 72% 52% / 0.3);
+  color: hsl(60 9% 92%);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}

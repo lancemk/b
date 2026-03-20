@@ -1,0 +1,383 @@
+import React, { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import { Link, useLocation } from "react-router-dom";
+import { ChevronRight, Calendar, User, Clock, Tag } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // prettier-ignore
+import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+
+// prettier-ignore
+interface MarkdownSection { id: string; title: string; level: number; }
+
+interface TocNode extends MarkdownSection {
+  children: TocNode[];
+}
+
+// prettier-ignore
+interface MarkdownData { slug: string; title: string; author?: string; date?: string; createdAt?: string; lastModified?: string; content: string; tags?: string;}
+
+const TocNodeComponent: React.FC<{ node: TocNode; level: number }> = ({
+  node,
+  level,
+}) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const location = useLocation();
+  const hasChildren = node.children.length > 0;
+
+  const handleToggle = (e: React.MouseEvent) => {
+    if (hasChildren) {
+      e.preventDefault();
+      setIsCollapsed(!isCollapsed);
+    }
+  };
+
+  // User requested starting from 12px and down by 1px.
+  // Let's ensure a minimum font size for readability.
+  const baseFontSize = 12.5;
+  const fontSize = `${Math.max(10, baseFontSize - (level - 1))}px`;
+  const paddingLeft = `${(level - 1) * 4}px`; // 12px indent per level
+
+  return (
+    <>
+      <div className="flex items-center group" style={{ paddingLeft }}>
+        {hasChildren ? (
+          <button
+            onClick={handleToggle}
+            className="p-1 -ml-1 mr-1 rounded-md hover:bg-muted"
+            aria-label="Toggle section"
+          >
+            <ChevronRight
+              className={cn(
+                "h-4 w-4 transition-transform flex-shrink-0",
+                !isCollapsed && "rotate-90",
+              )}
+            />
+          </button>
+        ) : (
+          // <div className="w-2 h-2 mr-0.5 rounded-full bg-muted flex-shrink-0" /> // Placeholder for alignment
+          <div className="w-3 h-2 mr-0.5 flex-shrink-0" /> // Placeholder for alignment
+        )}
+        <Link
+          reloadDocument
+          to={`#${node.id}`}
+          onClick={!hasChildren ? undefined : handleToggle}
+          className={cn(
+            "block py-1 rounded transition-colors flex-grow truncate",
+            location.hash === `#${node.id}`
+              ? "font-medium text-primary"
+              : "text-muted-foreground group-hover:text-foreground",
+          )}
+          style={{ fontSize }}
+        >
+          {node.title}
+        </Link>
+      </div>
+      {!isCollapsed && hasChildren && (
+        <div>
+          {node.children.map((child) => (
+            <TocNodeComponent key={child.id} node={child} level={level + 1} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+const TableOfContents: React.FC<{ sections: MarkdownSection[] }> = ({
+  sections,
+}) => {
+  const [tree, setTree] = useState<TocNode[]>([]);
+
+  useEffect(() => {
+    const buildTree = (sections: MarkdownSection[]): TocNode[] => {
+      const rootNodes: TocNode[] = [];
+      const stack: TocNode[] = [];
+
+      sections.forEach((section) => {
+        const node: TocNode = { ...section, children: [] };
+
+        while (
+          stack.length > 0 &&
+          stack[stack.length - 1].level >= node.level
+        ) {
+          stack.pop();
+        }
+
+        if (stack.length > 0) {
+          stack[stack.length - 1].children.push(node);
+        } else {
+          rootNodes.push(node);
+        }
+        stack.push(node);
+      });
+      return rootNodes;
+    };
+
+    setTree(buildTree(sections));
+  }, [sections]);
+
+  if (tree.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="sticky z-50 top-[7em]">
+      <CardHeader>
+        <CardTitle className="text-base">On this page</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1 pr-2">
+        {tree.map((node) => (
+          <TocNodeComponent key={node.id} node={node} level={1} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+};
+
+interface MDContentRendererProps {
+  data: MarkdownData;
+  type: "blog" | "docs" | "api" | "case-study" | "help" | "news" | "policy";
+  allArticles?: any[]; // explixit defined the articles struct, if any
+  isToc?: boolean;
+}
+
+const MDContentRenderer: React.FC<MDContentRendererProps> = ({
+  data,
+  type,
+  allArticles,
+  isToc = false,
+}) => {
+  const [toc, setToc] = useState<MarkdownSection[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const headings: MarkdownSection[] = [];
+    const articleContent = document.getElementById("markdown-content");
+    if (articleContent) {
+      articleContent
+        .querySelectorAll("h2, h3, h4, h5, h6")
+        .forEach((heading) => {
+          if (heading.id) {
+            headings.push({
+              id: heading.id,
+              title: heading.textContent || "",
+              level: parseInt(heading.tagName.substring(1)) - 1, // h2 = level 1, h3 = level 2, etc.
+            });
+          }
+        });
+    }
+    setToc(headings);
+  }, [data.content]);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      const element = document.getElementById(location.hash.substring(1));
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }, [location.hash]);
+
+  const getBasePath = () => {
+    if (type === "blog") return "/resource/blog";
+    if (type === "news") return "/news";
+    if (type === "policy") return "/policy";
+    return `/${type}`;
+  };
+
+  return (
+    <div className="flex justify-center">
+      {" "}
+      {/* Centered container */}
+      <div className="container mx-auto px-0 py-8 grid lg:grid-cols-7 gap-12 w-[90%]">
+        {/* Table of Contents */}
+
+        {isToc && (
+          <div className="hidden lg:block col-span-2 pt-[2em]">
+            <TableOfContents sections={toc} />
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="md:col-span-5 space-y-8">
+          {/* Header */}
+          <div className="space-y-4">
+            <h1 className="text-4xl font-bold">{data.title}</h1>
+
+            {/* Meta Information */}
+            {(data.author || data.createdAt || data.lastModified) && (
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                {data.author && (
+                  <div className="flex items-center gap-1">
+                    <User className="h-4 w-4" />
+                    <span>By {data.author}</span>
+                  </div>
+                )}
+                {data.date && (
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>{data.date}</span>
+                  </div>
+                )}
+                {data.lastModified && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    <span>Updated {data.lastModified}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tags Section */}
+            {data.tags && (
+              <div className="flex items-center flex-wrap gap-2 text-sm text-muted-foreground pt-2">
+                <Tag className="h-4 w-4" />
+                {data.tags.split(" ").map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-muted text-muted-foreground px-2 py-1 rounded-md text-xs"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Markdown Content */}
+          <div
+            id="markdown-content"
+            className="prose prose-neutral dark:prose-invert max-w-none"
+          >
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSlug, rehypeAutolinkHeadings]}
+              components={{
+                h1: ({ children, ...props }) => (
+                  <h1
+                    className="text-3xl font-bold mb-6 mt-8 text-foregrond"
+                    {...props}
+                  >
+                    {children}
+                  </h1>
+                ),
+                h2: ({ children, ...props }) => (
+                  <h2
+                    className="text-2xl font-semibold mb-4 mt-8 text-foregrond"
+                    {...props}
+                  >
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children, ...props }) => (
+                  <h3
+                    className="text-xl font-semibold mb-3 mt-6 text-foregrond"
+                    {...props}
+                  >
+                    {children}
+                  </h3>
+                ),
+                h4: ({ children, ...props }) => (
+                  <h4
+                    className="text-lg font-semibold mb-3 mt-6 text-foregrond"
+                    {...props}
+                  >
+                    {children}
+                  </h4>
+                ),
+                p: ({ children }) => (
+                  <p className="mb-4 leading-relaxed text-foregrond">
+                    {children}
+                  </p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="mb-4 space-y-1 list-disc pl-6">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="mb-4 space-y-1 list-decimal pl-6">
+                    {children}
+                  </ol>
+                ),
+                li: ({ children }) => (
+                  <li className="text-foregrond">{children}</li>
+                ),
+                code: ({ children, className }) => {
+                  const isInline = !className;
+                  return isInline ? (
+                    <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-foregrond">
+                      {children}
+                    </code>
+                  ) : (
+                    <code className={className}>{children}</code>
+                  );
+                },
+                pre: ({ children }) => (
+                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto mb-4">
+                    {children}
+                  </pre>
+                ),
+              }}
+            >
+              {data.content}
+            </ReactMarkdown>
+          </div>
+
+          {/* Feedback Section */}
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 py-8 border-t border-b border-border">
+            <span className="text-lg font-semibold">
+              Was this article helpful?
+            </span>
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => {
+                  setTimeout(() => {
+                    toast({
+                      title: "Feedback Submitted",
+                      description: "Thank you for helping us improve!",
+                    });
+                  }, 500);
+                }}
+              >
+                👍
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => {
+                  setTimeout(() => {
+                    toast({
+                      title: "Feedback Submitted",
+                      description: "Thank you for helping us improve!",
+                    });
+                  }, 500);
+                }}
+              >
+                👎
+              </Button>
+            </div>
+          </div>
+
+          {/* Related Articles Section */}
+          {
+            allArticles && data.tags && null
+            // related articles goes here, if any.
+          }
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MDContentRenderer;
