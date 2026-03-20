@@ -6,13 +6,13 @@
   "homepage": "https://lancemk.github.io/b",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp dist/index.html dist/404.html",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
     "pre-deploy": "pnpm run build",
     "deploy": "gh-pages -d dist",
-    "test": "vitest run",
+    "local:deploy": "gh-pages -d dist --repo https://x-access-token:$GITHUB_TOKEN@github.com/username/repo-name.git",
     "test:watch": "vitest"
   },
   "dependencies": {
